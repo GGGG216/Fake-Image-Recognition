@@ -7,7 +7,42 @@ Real vs AI-Generated Image Classifier - 优化版
 - Percentile归一化
 - Sobel梯度
 """
+"""
+外部调用：
+# your_code.py（与train.py同目录）
 
+from train import PhysicsFeatureExtractor, Config
+from PIL import Image
+from torchvision import transforms
+import torch
+
+# 1. 初始化（只需一次）
+config = Config()
+extractor = PhysicsFeatureExtractor(config).to(config.device)
+extractor.eval()
+
+# 2. 图片预处理
+transform = transforms.Compose([
+    transforms.Resize((config.image_size, config.image_size)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+
+image = Image.open("your_image.jpg").convert('RGB')
+image_tensor = transform(image).unsqueeze(0).to(config.device)  # [1, 3, H, W]
+
+# 3. 调用forward获取depth和shading
+with torch.no_grad():
+    depth, predicted_shading, physics_features = extractor(image_tensor)
+    
+# 输出：
+# depth: torch.Tensor [1, 1, H, W] - 深度图
+# predicted_shading: torch.Tensor [1, 1, H, W] - 着色图
+# physics_features: dict - 物理特征字典
+
+print(f"Depth shape: {depth.shape}")
+print(f"Shading shape: {predicted_shading.shape}")
+"""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -318,9 +353,9 @@ class PhysicsFeatureExtractor(nn.Module):
         return depth, predicted_shading, physics_features
 
 
-# ==================== 2. ViT分类器（转换层版本）====================
+# ==================== 2. ViT分类器（含转换层)===============
 class PhysicsAwareViT(nn.Module):
-    """结合物理特征的ViT分类器 - 转换层版本"""
+
     
     def __init__(self, config: Config):
         super().__init__()
